@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/user.model.js';
-import process from 'process';
 import crypto from 'crypto';
+import process from 'process';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -11,7 +11,7 @@ const otpStorage = new Map();
 const AuthController = {
   register: async (req, res) => {
     try {
-      const { username, email, password, fullName, phone } = req.body;
+      const { email, password, fullName, phone } = req.body;
       
       const existingEmail = await UserModel.findByEmail(email);
       if (existingEmail) {
@@ -21,16 +21,7 @@ const AuthController = {
         });
       }
       
-      const existingUsername = await UserModel.findByUsername(username);
-      if (existingUsername) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Username sudah terdaftar' 
-        });
-      }
-      
       const newUser = await UserModel.create({ 
-        username, 
         email, 
         password,
         fullName: fullName || '',
@@ -42,7 +33,6 @@ const AuthController = {
         { 
           id: newUser.id, 
           email: newUser.email,
-          username: newUser.username,
           role: newUser.role
         },
         JWT_SECRET,
@@ -54,10 +44,9 @@ const AuthController = {
         message: 'Registrasi berhasil',
         data: {
           id: newUser.id,
-          username: newUser.username,
           email: newUser.email,
           role: newUser.role,
-          createdAt: newUser.createdAt
+          profile: newUser.profile
         },
         token
       });
@@ -65,7 +54,8 @@ const AuthController = {
       console.error('Register error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat registrasi'
+        message: 'Terjadi kesalahan saat registrasi',
+        error: error.message
       });
     }
   },
@@ -76,17 +66,17 @@ const AuthController = {
       
       const user = await UserModel.findByEmail(email);
       if (!user) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
-          message: 'Email atau password salah' 
+          message: 'Email atau password salah'
         });
       }
       
       const isPasswordValid = await UserModel.verifyPassword(password, user.password);
       if (!isPasswordValid) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
-          message: 'Email atau password salah' 
+          message: 'Email atau password salah'
         });
       }
       
@@ -94,8 +84,7 @@ const AuthController = {
         { 
           id: user.id, 
           email: user.email,
-          username: user.username,
-          role: user.role || 'customer'
+          role: user.role
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -106,9 +95,9 @@ const AuthController = {
         message: 'Login berhasil',
         data: {
           id: user.id,
-          username: user.username,
           email: user.email,
-          role: user.role || 'customer'
+          role: user.role,
+          profile: user.profile
         },
         token
       });
@@ -123,7 +112,7 @@ const AuthController = {
 
   verifyToken: async (req, res) => {
     try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
+      const token = req.headers.authorization?.split(' ')[1];
       
       if (!token) {
         return res.status(401).json({
@@ -131,13 +120,25 @@ const AuthController = {
           message: 'Token tidak ditemukan'
         });
       }
-
+      
       const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await UserModel.findById(decoded.id);
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User tidak ditemukan'
+        });
+      }
       
       res.json({
         success: true,
         message: 'Token valid',
-        data: decoded
+        data: {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        }
       });
     } catch (error) {
       res.status(401).json({
@@ -151,18 +152,11 @@ const AuthController = {
     try {
       const { email } = req.body;
       
-      if (!email) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email harus diisi'
-        });
-      }
-      
       const user = await UserModel.findByEmail(email);
       if (!user) {
-        return res.json({
-          success: true,
-          message: 'Jika email terdaftar, OTP akan dikirim'
+        return res.status(404).json({
+          success: false,
+          message: 'Email tidak terdaftar'
         });
       }
       
@@ -179,13 +173,13 @@ const AuthController = {
       res.json({
         success: true,
         message: 'OTP telah dikirim ke email Anda',
-        ...(process.env.NODE_ENV === 'development' && { otp })
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined
       });
     } catch (error) {
       console.error('Forgot password error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengirim OTP'
+        message: 'Terjadi kesalahan'
       });
     }
   },
@@ -194,54 +188,40 @@ const AuthController = {
     try {
       const { email, otp, newPassword } = req.body;
       
-      if (!email || !otp || !newPassword) {
+      const storedOTP = otpStorage.get(email);
+      
+      if (!storedOTP) {
         return res.status(400).json({
           success: false,
-          message: 'Email, OTP, dan password baru harus diisi'
+          message: 'OTP tidak ditemukan atau expired'
         });
       }
       
-      const otpData = otpStorage.get(email);
-      
-      if (!otpData) {
-        return res.status(400).json({
-          success: false,
-          message: 'OTP tidak valid atau sudah kadaluarsa'
-        });
-      }
-      
-      if (Date.now() > otpData.expiresAt) {
+      if (Date.now() > storedOTP.expiresAt) {
         otpStorage.delete(email);
         return res.status(400).json({
           success: false,
-          message: 'OTP sudah kadaluarsa'
+          message: 'OTP sudah expired'
         });
       }
       
-      if (otpData.attempts >= 3) {
+      if (storedOTP.attempts >= 3) {
         otpStorage.delete(email);
         return res.status(400).json({
           success: false,
-          message: 'Terlalu banyak percobaan. Silakan minta OTP baru'
+          message: 'Terlalu banyak percobaan. Silakan request OTP baru'
         });
       }
       
-      if (otpData.otp !== otp) {
-        otpData.attempts += 1;
+      if (storedOTP.otp !== otp) {
+        storedOTP.attempts++;
         return res.status(400).json({
           success: false,
-          message: 'OTP tidak valid'
+          message: 'OTP salah'
         });
       }
       
       const user = await UserModel.findByEmail(email);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User tidak ditemukan'
-        });
-      }
-      
       await UserModel.updatePassword(user.id, newPassword);
       
       otpStorage.delete(email);
@@ -254,7 +234,7 @@ const AuthController = {
       console.error('Verify OTP error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat verifikasi OTP'
+        message: 'Terjadi kesalahan'
       });
     }
   }
