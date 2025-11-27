@@ -1,0 +1,344 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  admin
+  customer
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String       
+  role         String?       
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime?     @map("updated_at")
+  
+  profile      UserProfile?
+  reviews      ProductReview[]
+  orders       Order[]
+  cartItems    CartItem[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique @map("user_id")
+  fullName    String?   @map("full_name")
+  phone       String?   
+  address     String?   
+  photoUrl    String?   @map("photo_url")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
+  
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("user_profiles")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String   
+  description String?   
+  categoryId  Int       @map("category_id")
+  price       Int
+  isFlashSale Boolean?  @map("is_flash_sale")
+  isFavorite  Boolean?  @map("is_favorite")
+  isBuy1get1  Boolean?  @map("is_buy1get1")
+  isActive    Boolean   @default(true) @map("is_active")
+  stock       Int       @default(0)
+  imageUrl    String?   @map("image_url")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
+  
+  category         Category[]
+  images           ProductImage[]
+  reviews          ProductReview[]
+  promoProducts    PromoProduct[]
+  orderItems       OrderItem[]
+  cartItems        CartItem[]
+  productDetails   ProductDetail[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id           Int      @id @default(autoincrement())
+  productId    Int      @map("product_id")
+  imageUrl     String   @map("image_url")
+  isPrimary    Boolean? @map("is_primary")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, displayOrder])
+  @@map("product_images")
+}
+
+model ProductReview {
+  id         Int      @id @default(autoincrement())
+  productId  Int      @map("product_id")
+  userId     Int      @map("user_id")
+  rating     Int
+  reviewText String?  @map("review_text") 
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  product    Product  @relation(fields: [productId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@map("product_reviews")
+}
+
+model Promo {
+  id                 Int            @id @default(autoincrement())
+  code               String         @unique
+  title              String        
+  description        String?        
+  discountPercentage Int            @map("discount_percentage")
+  startDate          DateTime       @map("start_date")
+  endDate            DateTime       @map("end_date")
+  isActive           Boolean        @default(true) @map("is_active")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  
+  promoProducts      PromoProduct[]
+  orders             Order[]
+
+  @@map("promos")
+}
+
+model PromoProduct {
+  id        Int      @id @default(autoincrement())
+  promoId   Int      @map("promo_id")
+  productId Int      @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  promo     Promo    @relation(fields: [promoId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("promo_products")
+}
+
+model DeliveryMethod {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  baseFee     Int      @map("base_fee")
+  description String?  
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  orders      Order[]
+
+  @@map("delivery_methods")
+}
+
+model PaymentMethod {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  orders      Order[]
+
+  @@map("payment_methods")
+}
+
+model TaxRate {
+  id             Int      @id @default(autoincrement())
+  name           String  
+  ratePercentage Decimal  @map("rate_percentage")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  orders         Order[]
+
+  @@map("tax_rates")
+}
+
+model ProductSize {
+  id              Int             @id @default(autoincrement())
+  name            String         
+  priceAdjustment Int             @default(0) @map("price_adjustment")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+  productDetails  ProductDetail[]
+
+  @@map("product_sizes")
+}
+
+model ProductTemperature {
+  id             Int             @id @default(autoincrement())
+  name           String         
+  price          Int             @default(0)
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  
+  orderItems     OrderItem[]
+  cartItems      CartItem[]
+  productDetails ProductDetail[]
+
+  @@map("product_temperatures")
+}
+
+model OrderStatus {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  displayName  String   @map("display_name")
+  description  String?  
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  orders       Order[]
+
+  @@map("order_status")
+}
+
+model Order {
+  id               Int       @id @default(autoincrement())
+  orderNumber      String    @unique @map("order_number")
+  userId           Int       @map("user_id")
+  statusId         Int       @map("status_id")
+  deliveryAddress  String    @map("delivery_address") 
+  deliveryMethodId Int       @map("delivery_method_id")
+  subtotal         Int
+  deliveryFee      Int       @map("delivery_fee")
+  taxAmount        Int       @map("tax_amount")
+  taxRateId        Int?      @map("tax_rate_id")
+  total            Int
+  promoId          Int?      @map("promo_id")
+  paymentMethodId  Int       @map("payment_method_id")
+  orderDate        DateTime  @default(now()) @map("order_date")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @map("updated_at")
+  
+  user             User            @relation(fields: [userId], references: [id])
+  status           OrderStatus     @relation(fields: [statusId], references: [id])
+  deliveryMethod   DeliveryMethod  @relation(fields: [deliveryMethodId], references: [id])
+  taxRate          TaxRate?        @relation(fields: [taxRateId], references: [id])
+  promo            Promo?          @relation(fields: [promoId], references: [id], onDelete: SetNull)
+  paymentMethod    PaymentMethod   @relation(fields: [paymentMethodId], references: [id])
+  orderItems       OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            Int                 @id @default(autoincrement())
+  orderId       Int                 @map("order_id")
+  productId     Int                 @map("product_id")
+  quantity      Int
+  sizeId        Int?                @map("size_id")
+  temperatureId Int?                @map("temperature_id")
+  unitPrice     Int                 @map("unit_price")
+  isFlashSale   Boolean?            @map("is_flash_sale")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  
+  order         Order               @relation(fields: [orderId], references: [id])
+  product       Product             @relation(fields: [productId], references: [id])
+  size          ProductSize?        @relation(fields: [sizeId], references: [id])
+  temperature   ProductTemperature? @relation(fields: [temperatureId], references: [id])
+
+  @@map("order_items")
+}
+
+model CartItem {
+  id            Int                 @id @default(autoincrement())
+  userId        Int                 @map("user_id")
+  productId     Int                 @map("product_id")
+  quantity      Int                 @default(1)
+  sizeId        Int?                @map("size_id")
+  temperatureId Int?                @map("temperature_id")
+  variantId     Int?                @map("variant_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @default(now()) @map("updated_at")
+  
+  user          User                @relation(fields: [userId], references: [id])
+  product       Product             @relation(fields: [productId], references: [id])
+  size          ProductSize?        @relation(fields: [sizeId], references: [id])
+  temperature   ProductTemperature? @relation(fields: [temperatureId], references: [id])
+  variant       ProductVariant?     @relation(fields: [variantId], references: [id])
+
+  @@map("cart_items")
+}
+
+model ProductVariant {
+  id             Int             @id @default(autoincrement())
+  name           String         
+  description    String?         
+  price          Int             @default(0)
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  
+  cartItems      CartItem[]
+  productDetails ProductDetail[]
+
+  @@map("product_variants")
+}
+
+model ProductDetail {
+  id              Int       @id @default(autoincrement())
+  productId       Int       @map("product_id")
+  sizeId          Int?      @map("size_id")
+  temperatureId   Int?      @map("temperature_id")
+  variantId       Int?      @map("variant_id")
+  priceAdjustment Int       @default(0) @map("price_adjustment")
+  stockAdjustment Int       @default(0) @map("stock_adjustment")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+  
+  product                     Product                  @relation(fields: [productId], references: [id])
+  size                        ProductSize?             @relation(fields: [sizeId], references: [id])
+  temperature                 ProductTemperature?      @relation(fields: [temperatureId], references: [id])
+  variant                     ProductVariant?          @relation(fields: [variantId], references: [id])
+  recommendations             ProductRecommendation[]  @relation("ProductDetailRecommendations")
+  recommendedBy               ProductRecommendation[]  @relation("RecommendedProductDetails")
+
+  @@unique([productId, sizeId, temperatureId, variantId])
+  @@map("product_details")
+}
+
+model ProductRecommendation {
+  id                         Int            @id @default(autoincrement())
+  productDetailId            Int            @map("product_detail_id")
+  recommendedProductDetailId Int            @map("recommended_product_detail_id")
+  recommendationType         String         @map("recommendation_type")
+  priority                   Int            @default(0)
+  isActive                   Boolean        @default(true) @map("is_active")
+  createdAt                  DateTime       @default(now()) @map("created_at")
+  
+  productDetail              ProductDetail  @relation("ProductDetailRecommendations", fields: [productDetailId], references: [id])
+  recommendedProductDetail   ProductDetail  @relation("RecommendedProductDetails", fields: [recommendedProductDetailId], references: [id])
+
+  @@unique([productDetailId, recommendedProductDetailId])
+  @@map("product_recommendations")
+}
