@@ -11,14 +11,15 @@ router.use(authMiddleware);
  * @summary Checkout cart and create order
  * @tags Transactions
  * @security BearerAuth
- * @param {object} request.body
- * @param {string} request.body.email
- * @param {string} request.body.fullName
- * @param {string} request.body.address
- * @param {string} request.body.deliveryMethod
- * @param {number} request.body.paymentMethodId
- * @return {object} 201
- * @return {object} 400
+ * @param {string} email.query.required - Email address
+ * @param {string} fullName.query.required - Full name
+ * @param {string} address.query.required - Delivery address
+ * @param {string} deliveryMethod.query.required - Delivery method (delivery, pickup)
+ * @param {number} paymentMethodId.query.required - Payment method ID
+ * @param {string} promoCode.query - Promo code (optional)
+ * @param {string} notes.query - Order notes (optional)
+ * @return {object} 201 - Order created successfully
+ * @return {object} 400 - Invalid data or empty cart
  */
 router.post('/checkout', TransactionController.checkout);
 
