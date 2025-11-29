@@ -4,7 +4,8 @@ const TransactionController = {
   checkout: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { email, fullName, address, deliveryMethod = 'dine_in', paymentMethodId = 1 } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, fullName, address, deliveryMethod = 'dine_in', paymentMethodId = 1 } = data;
       
       const result = await prisma.$transaction(async (tx) => {
         const cartItems = await tx.cartItem.findMany({
@@ -34,11 +35,6 @@ const TransactionController = {
         }
         
         let deliveryFee = 0;
-        if (deliveryMethod === 'door_delivery') {
-          deliveryFee = 10000;
-        }
-        
-        const total = subtotal + deliveryFee;
         
         let orderEmail = email;
         let orderFullName = fullName;
@@ -48,22 +44,54 @@ const TransactionController = {
           const user = await tx.user.findUnique({
             where: { id: userId },
             include: {
-              userProfile: true
+              profile: true
             }
           });
           
           if (!orderEmail) orderEmail = user.email;
-          if (!orderFullName) orderFullName = user.userProfile?.fullName || user.email;
-          if (!orderAddress) orderAddress = user.userProfile?.address || 'Default Address';
+          if (!orderFullName) orderFullName = user.profile?.fullName || user.email;
+          if (!orderAddress) orderAddress = user.profile?.address || 'Default Address';
         }
         
         if (!orderEmail || !orderFullName || !orderAddress) {
           throw new Error('Email, nama lengkap, dan alamat harus diisi');
         }
         
-        const validMethods = ['dine_in', 'door_delivery', 'pick_up'];
-        if (!validMethods.includes(deliveryMethod)) {
-          throw new Error('Metode pengiriman tidak valid');
+        const pendingStatus = await tx.orderStatus.findFirst({
+          where: { name: 'pending' }
+        });
+        
+        if (!pendingStatus) {
+          throw new Error('Status pending tidak ditemukan');
+        }
+        
+        let deliveryMethodRecord;
+        const deliveryMethodInt = parseInt(deliveryMethod);
+        
+        if (!isNaN(deliveryMethodInt)) {
+          deliveryMethodRecord = await tx.deliveryMethod.findUnique({
+            where: { id: deliveryMethodInt }
+          });
+        } else {
+          deliveryMethodRecord = await tx.deliveryMethod.findFirst({
+            where: { name: deliveryMethod }
+          });
+        }
+        
+        if (!deliveryMethodRecord) {
+          throw new Error('Delivery method tidak ditemukan');
+        }
+        
+        deliveryFee = deliveryMethodRecord.baseFee;
+        
+        const total = subtotal + deliveryFee;
+        
+        const paymentMethodRecord = await tx.paymentMethod.findUnique({
+          where: { id: parseInt(paymentMethodId) }
+        });
+        
+        if (!paymentMethodRecord) {
+          throw new Error('Payment method tidak ditemukan');
         }
         
         const orderNumber = `ORD-${Date.now()}`;
@@ -72,14 +100,14 @@ const TransactionController = {
           data: {
             orderNumber,
             userId,
-            status: 'pending',
+            statusId: pendingStatus.id,
             deliveryAddress: orderAddress,
-            deliveryMethod,
+            deliveryMethodId: deliveryMethodRecord.id,
             subtotal,
             deliveryFee,
             taxAmount: 0,
             total,
-            paymentMethod: paymentMethodId.toString(),
+            paymentMethodId: paymentMethodRecord.id,
             orderDate: new Date()
           }
         });
