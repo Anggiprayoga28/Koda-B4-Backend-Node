@@ -1,29 +1,29 @@
-import { body, validationResult } from 'express-validator';
+import { query, validationResult } from 'express-validator';
 
 export const registerValidation = [
-  body('email')
+  query('email')
     .trim()
     .isEmail().withMessage('Format email tidak valid')
     .normalizeEmail(),
-  body('password')
+  query('password')
     .isLength({ min: 6 }).withMessage('Password minimal 6 karakter')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password harus mengandung huruf besar, huruf kecil, dan angka'),
-  body('fullName')
+  query('fullName')
     .optional()
     .trim()
     .isLength({ min: 3 }).withMessage('Nama lengkap minimal 3 karakter'),
-  body('phone')
+  query('phone')
     .optional()
     .trim()
     .matches(/^(\+62|62|0)[0-9]{9,12}$/).withMessage('Format nomor telepon tidak valid')
 ];
 
 export const loginValidation = [
-  body('email')
+  query('email')
     .trim()
     .isEmail().withMessage('Format email tidak valid')
     .normalizeEmail(),
-  body('password')
+  query('password')
     .notEmpty().withMessage('Password harus diisi')
 ];
 
