@@ -14,7 +14,7 @@ const CartController = {
               name: true,
               price: true,
               stock: true,
-              image: true,
+              imageUrl: true,
               isActive: true
             }
           },
@@ -44,7 +44,7 @@ const CartController = {
             temperature: item.temperature?.name || '',
             temperaturePrice,
             subtotal: itemPrice,
-            imageUrl: item.product.image ? `${req.protocol}://${req.get('host')}${item.product.image}` : null,
+            imageUrl: item.product.imageUrl ? `${req.protocol}://${req.get('host')}${item.product.imageUrl}` : null,
             stock: item.product.stock
           };
         });
@@ -61,7 +61,8 @@ const CartController = {
       console.error('Get cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengambil keranjang'
+        message: 'Terjadi kesalahan saat mengambil keranjang',
+        error: error.message
       });
     }
   },
@@ -69,7 +70,8 @@ const CartController = {
   addToCart: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { productId, quantity, sizeId, temperatureId } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { productId, quantity, sizeId, temperatureId } = data;
       
       if (!productId || !quantity) {
         return res.status(400).json({
@@ -108,7 +110,6 @@ const CartController = {
       let cartItem;
       
       if (existingItem) {
-        // Update quantity
         const newQuantity = existingItem.quantity + parseInt(quantity);
         
         if (product.stock < newQuantity) {
@@ -155,7 +156,8 @@ const CartController = {
       console.error('Add to cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat menambahkan ke keranjang'
+        message: 'Terjadi kesalahan saat menambahkan ke keranjang',
+        error: error.message
       });
     }
   },
@@ -164,7 +166,8 @@ const CartController = {
     try {
       const userId = req.user.id;
       const cartItemId = parseInt(req.params.id);
-      const { quantity } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { quantity } = data;
       
       if (!quantity || quantity < 1) {
         return res.status(400).json({
@@ -211,7 +214,8 @@ const CartController = {
       console.error('Update cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengupdate keranjang'
+        message: 'Terjadi kesalahan saat mengupdate keranjang',
+        error: error.message
       });
     }
   },
@@ -247,7 +251,8 @@ const CartController = {
       console.error('Remove from cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat menghapus dari keranjang'
+        message: 'Terjadi kesalahan saat menghapus dari keranjang',
+        error: error.message
       });
     }
   },
@@ -268,7 +273,8 @@ const CartController = {
       console.error('Clear cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengosongkan keranjang'
+        message: 'Terjadi kesalahan saat mengosongkan keranjang',
+        error: error.message
       });
     }
   }
