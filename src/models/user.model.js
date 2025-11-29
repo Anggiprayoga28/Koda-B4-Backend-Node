@@ -35,6 +35,17 @@ const UserModel = {
     });
   },
 
+  findByRole: async (role) => {
+    return await prisma.user.findFirst({
+      where: { role },
+      select: {
+        id: true,
+        email: true,
+        role: true
+      }
+    });
+  },
+
   findById: async (id) => {
     return await prisma.user.findUnique({
       where: { id: parseInt(id) },
