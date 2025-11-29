@@ -5,7 +5,6 @@ import authMiddleware from '../middlewares/jwt.authentication.js';
 
 const router = Router();
 
-// All order routes require authentication
 router.use(authMiddleware);
 
 /**
@@ -13,9 +12,10 @@ router.use(authMiddleware);
  * @summary Create new order
  * @tags Orders
  * @security BearerAuth
- * @param {object} request.body.required - Order data
- * @param {number} request.body.productId.required - Product ID
- * @param {number} request.body.quantity.required - Quantity
+ * @param {number} productId.query.required - Product ID
+ * @param {number} quantity.query.required - Quantity
+ * @param {number} sizeId.query - Size ID (optional)
+ * @param {number} temperatureId.query - Temperature ID (optional)
  * @return {object} 201 - Order created
  * @return {object} 400 - Invalid data
  */
