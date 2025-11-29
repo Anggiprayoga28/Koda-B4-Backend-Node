@@ -67,31 +67,15 @@ const deleteProductValidation = [
 ];
 
 const queryProductValidation = [
-  query('search')
+  query('page')
     .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Pencarian maksimal 100 karakter'),
+    .isInt({ min: 1 })
+    .withMessage('Page harus berupa angka bulat positif'),
 
-  query('minPrice')
+  query('limit')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Harga minimum harus berupa angka positif'),
-
-  query('maxPrice')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Harga maksimum harus berupa angka positif'),
-
-  query('sortBy')
-    .optional()
-    .isIn(['name', 'price', 'stock', 'createdAt'])
-    .withMessage('sortBy harus salah satu dari: name, price, stock, createdAt'),
-
-  query('order')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('order harus salah satu dari: asc, desc'),
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit harus berupa angka bulat antara 1-100'),
 ];
 
 const validate = (req, res, next) => {
