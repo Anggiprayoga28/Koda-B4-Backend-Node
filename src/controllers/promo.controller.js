@@ -56,12 +56,42 @@ const PromoController = {
 
   create: async (req, res) => {
     try {
-      const { title, description, code, bgColor, textColor } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { title, description, code, discountPercentage, discount, startDate, endDate } = data;
       
-      if (!title || !code) {
+      if (!title) {
         return res.status(400).json({
           success: false,
-          message: 'Title dan code harus diisi'
+          message: 'Title harus diisi'
+        });
+      }
+      
+      if (!code) {
+        return res.status(400).json({
+          success: false,
+          message: 'Code harus diisi'
+        });
+      }
+      
+      const discountValue = discountPercentage || discount;
+      if (!discountValue) {
+        return res.status(400).json({
+          success: false,
+          message: 'discountPercentage harus diisi'
+        });
+      }
+      
+      if (!startDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'startDate harus diisi (format: YYYY-MM-DD)'
+        });
+      }
+      
+      if (!endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'endDate harus diisi (format: YYYY-MM-DD)'
         });
       }
       
@@ -81,8 +111,9 @@ const PromoController = {
           title,
           description: description || '',
           code: code.toUpperCase(),
-          bgColor: bgColor || '#FF6B6B',
-          textColor: textColor || '#FFFFFF',
+          discountPercentage: parseInt(discountValue),
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
           isActive: true
         }
       });
@@ -104,7 +135,8 @@ const PromoController = {
   update: async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { title, description, code, bgColor, textColor, isActive } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { title, description, code, discountPercentage, startDate, endDate, isActive } = data;
       
       const promo = await prisma.promo.findUnique({
         where: { id }
@@ -137,9 +169,10 @@ const PromoController = {
       if (title) updateData.title = title;
       if (description !== undefined) updateData.description = description;
       if (code) updateData.code = code.toUpperCase();
-      if (bgColor) updateData.bgColor = bgColor;
-      if (textColor) updateData.textColor = textColor;
-      if (isActive !== undefined) updateData.isActive = isActive;
+      if (discountPercentage) updateData.discountPercentage = parseInt(discountPercentage);
+      if (startDate) updateData.startDate = new Date(startDate);
+      if (endDate) updateData.endDate = new Date(endDate);
+      if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
       
       const updatedPromo = await prisma.promo.update({
         where: { id },
