@@ -4,7 +4,6 @@ import authMiddleware from '../middlewares/jwt.authentication.js';
 
 const router = Router();
 
-// All cart routes require authentication
 router.use(authMiddleware);
 
 /**
@@ -22,11 +21,10 @@ router.get('/', CartController.getCart);
  * @summary Add item to cart
  * @tags Cart
  * @security BearerAuth
- * @param {object} request.body.required - Cart item data
- * @param {number} request.body.productId.required - Product ID
- * @param {number} request.body.quantity.required - Quantity
- * @param {number} request.body.sizeId - Size ID (optional)
- * @param {number} request.body.temperatureId - Temperature ID (optional)
+ * @param {number} productId.query.required - Product ID
+ * @param {number} quantity.query.required - Quantity
+ * @param {number} sizeId.query - Size ID (optional)
+ * @param {number} temperatureId.query - Temperature ID (optional)
  * @return {object} 201 - Item added
  * @return {object} 400 - Invalid data
  */
@@ -38,8 +36,7 @@ router.post('/', CartController.addToCart);
  * @tags Cart
  * @security BearerAuth
  * @param {number} id.path.required - Cart item ID
- * @param {object} request.body.required - Update data
- * @param {number} request.body.quantity.required - New quantity
+ * @param {number} quantity.query.required - New quantity
  * @return {object} 200 - Item updated
  * @return {object} 404 - Item not found
  */
