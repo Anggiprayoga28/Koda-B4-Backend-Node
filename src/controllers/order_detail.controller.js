@@ -22,7 +22,7 @@ const OrderDetailController = {
           user: {
             select: {
               email: true,
-              userProfile: {
+              profile: {
                 select: {
                   fullName: true,
                   phone: true
@@ -35,7 +35,7 @@ const OrderDetailController = {
               product: {
                 select: {
                   name: true,
-                  image: true
+                  imageUrl: true
                 }
               },
               size: {
@@ -86,8 +86,8 @@ const OrderDetailController = {
       const response = {
         orderNumber: order.orderNumber,
         orderDate,
-        fullName: order.user.userProfile?.fullName || order.user.email,
-        phone: order.user.userProfile?.phone || '',
+        fullName: order.user.profile?.fullName || order.user.email,
+        phone: order.user.profile?.phone || '',
         address: order.deliveryAddress,
         deliveryMethod: order.deliveryMethod || 'Dine In',
         paymentMethod: order.paymentMethod || 'Cash',
