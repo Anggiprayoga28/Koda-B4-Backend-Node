@@ -10,18 +10,18 @@ const router = Router();
 
 /**
  * GET /products
- * @summary Get all products with pagination and filters
+ * @summary Get all products with pagination only
  * @tags Products
- * @param {string} search.query - Search by name or description
- * @param {number} minPrice.query - Minimum price
- * @param {number} maxPrice.query - Maximum price
- * @param {string} sortBy.query - Sort field (name, price, stock, createdAt)
- * @param {string} order.query - Sort order (asc, desc)
- * @param {number} page.query - Page number
- * @param {number} limit.query - Items per page
- * @return {object} 200 - Products list
+ * @param {number} page.query - Page number (default: 1)
+ * @param {number} limit.query - Items per page (default: 10, max: 100)
+ * @return {object} 200 - Products list with pagination info
  */
 router.get('/', queryProductValidation, validate, ProductController.getAll);
+
+/**
+ * @typedef {object} upload
+ * @property {string} Image - Product image - binary
+ */
 
 /**
  * GET /products/filter
@@ -33,7 +33,7 @@ router.get('/', queryProductValidation, validate, ProductController.getAll);
  * @param {boolean} isBuy1Get1.query - Filter buy 1 get 1 products
  * @param {number} minPrice.query - Minimum price
  * @param {number} maxPrice.query - Maximum price
- * @param {string} search.query - Search keyword
+ * @param {upload} request.body.re 
  * @return {object} 200 - Filtered products
  */
 router.get('/filter', ProductController.filterProducts);
