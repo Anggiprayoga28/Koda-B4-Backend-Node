@@ -15,7 +15,7 @@ const ProfileController = {
           email: true,
           role: true,
           createdAt: true,
-          userProfile: {
+          profile: {
             select: {
               fullName: true,
               phone: true,
@@ -40,10 +40,10 @@ const ProfileController = {
           id: user.id,
           email: user.email,
           role: user.role,
-          fullName: user.userProfile?.fullName || '',
-          phone: user.userProfile?.phone || '',
-          address: user.userProfile?.address || '',
-          photoUrl: user.userProfile?.photoUrl ? `${req.protocol}://${req.get('host')}${user.userProfile.photoUrl}` : null,
+          fullName: user.profile?.fullName || '',
+          phone: user.profile?.phone || '',
+          address: user.profile?.address || '',
+          photoUrl: user.profile?.photoUrl ? `${req.protocol}://${req.get('host')}${user.profile.photoUrl}` : null,
           createdAt: user.createdAt
         }
       });
@@ -51,7 +51,8 @@ const ProfileController = {
       console.error('Get profile error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengambil profil'
+        message: 'Terjadi kesalahan saat mengambil profil',
+        error: error.message
       });
     }
   },
@@ -172,7 +173,8 @@ const ProfileController = {
       console.error('Update profile error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengupdate profil'
+        message: 'Terjadi kesalahan saat mengupdate profil',
+        error: error.message
       });
     }
   }
