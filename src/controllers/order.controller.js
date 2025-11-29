@@ -62,7 +62,7 @@ const OrderController = {
           user: {
             select: {
               email: true,
-              userProfile: {
+              profile: {  
                 select: {
                   fullName: true,
                   phone: true
@@ -70,12 +70,13 @@ const OrderController = {
               }
             }
           },
+          status: true,  
           orderItems: {
             include: {
               product: {
                 select: {
                   name: true,
-                  image: true
+                  imageUrl: true 
                 }
               }
             }
@@ -107,7 +108,8 @@ const OrderController = {
   createOrder: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { productId, quantity } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { productId, quantity } = data;
       
       if (!productId || !quantity) {
         return res.status(400).json({
@@ -161,18 +163,51 @@ const OrderController = {
       const total = product.price * quantityInt;
       const orderNumber = `ORD-${Date.now()}`;
       
+      const pendingStatus = await prisma.orderStatus.findFirst({
+        where: { name: 'pending' }
+      });
+      
+      if (!pendingStatus) {
+        return res.status(500).json({
+          success: false,
+          message: 'Status pending tidak ditemukan di database'
+        });
+      }
+      
+      const deliveryMethod = await prisma.deliveryMethod.findFirst({
+        where: { name: 'Dine In' } 
+      });
+      
+      if (!deliveryMethod) {
+        return res.status(500).json({
+          success: false,
+          message: 'Delivery method tidak ditemukan di database'
+        });
+      }
+      
+      const paymentMethod = await prisma.paymentMethod.findFirst({
+        where: { isActive: true }
+      });
+      
+      if (!paymentMethod) {
+        return res.status(500).json({
+          success: false,
+          message: 'Payment method tidak ditemukan di database'
+        });
+      }
+      
       const order = await prisma.order.create({
         data: {
           orderNumber,
           userId,
-          status: 'pending',
+          statusId: pendingStatus.id,
           deliveryAddress: 'Default',
-          deliveryMethod: 'dine_in',
+          deliveryMethodId: deliveryMethod.id,
           subtotal: total,
           deliveryFee: 0,
           taxAmount: 0,
           total,
-          paymentMethod: '1',
+          paymentMethodId: paymentMethod.id,
           orderDate: new Date()
         }
       });
@@ -199,7 +234,8 @@ const OrderController = {
   updateOrderStatus: async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { status } = data;
       
       if (id <= 0) {
         return res.status(400).json({
@@ -215,7 +251,7 @@ const OrderController = {
         });
       }
       
-      const validStatuses = ['pending', 'processing', 'shipping', 'delivered', 'done', 'cancelled'];
+      const validStatuses = ['pending', 'on_progress', 'sending_goods', 'finish_order', 'cancelled'];  // Match seed data
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -234,9 +270,20 @@ const OrderController = {
         });
       }
       
+      const statusRecord = await prisma.orderStatus.findFirst({
+        where: { name: status }
+      });
+      
+      if (!statusRecord) {
+        return res.status(400).json({
+          success: false,
+          message: `Status '${status}' tidak ditemukan di database`
+        });
+      }
+      
       const updatedOrder = await prisma.order.update({
         where: { id },
-        data: { status }
+        data: { statusId: statusRecord.id }
       });
       
       res.json({
