@@ -5,7 +5,6 @@ import upload from '../lib/upload.js';
 
 const router = Router();
 
-// All profile routes require authentication
 router.use(authMiddleware);
 
 /**
@@ -19,18 +18,25 @@ router.use(authMiddleware);
 router.get('/', ProfileController.getProfile);
 
 /**
+ * Update Profile
+ * @typedef {object} UpdateProfileRequest
+ * @property {string} fullName.form - Full name
+ * @property {string} phone.form - Phone number
+ * @property {string} address.form - Address
+ * @property {string} oldPassword.form - Old password (required if changing password)
+ * @property {string} newPassword.form - New password
+ * @property {string} confirmPassword.form - Confirm new password
+ * @property {string} photo.form - Profile photo - binary
+ */
+
+/**
  * PATCH /profile
  * @summary Update user profile
  * @tags Profile
  * @security BearerAuth
- * @param {string} fullName.form - Full name
- * @param {string} phone.form - Phone number
- * @param {string} address.form - Address
- * @param {string} oldPassword.form - Old password (if changing password)
- * @param {string} newPassword.form - New password
- * @param {string} confirmPassword.form - Confirm new password
- * @param {file} photo.form - Profile photo
- * @return {object} 200 - Profile updated
+ * @param {UpdateProfileRequest} request.body.required - Form to update profile - multipart/form-data
+ * @return {object} 200 - Profile updated successfully
+ * @return {object} 400 - Bad request
  * @return {object} 401 - Unauthorized
  */
 router.patch('/', upload.single('photo'), ProfileController.updateProfile);
