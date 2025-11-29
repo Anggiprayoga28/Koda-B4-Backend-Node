@@ -19,10 +19,9 @@ const UserController = {
         select: {
           id: true,
           email: true,
-          username: true,
           role: true,
           createdAt: true,
-          userProfile: {
+          profile: {
             select: {
               fullName: true,
               phone: true,
@@ -51,7 +50,8 @@ const UserController = {
       console.error('Get all users error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengambil data user'
+        message: 'Terjadi kesalahan saat mengambil data user',
+        error: error.message
       });
     }
   },
@@ -72,10 +72,9 @@ const UserController = {
         select: {
           id: true,
           email: true,
-          username: true,
           role: true,
           createdAt: true,
-          userProfile: {
+          profile: {
             select: {
               fullName: true,
               phone: true,
@@ -102,19 +101,21 @@ const UserController = {
       console.error('Get user by ID error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengambil data user'
+        message: 'Terjadi kesalahan saat mengambil data user',
+        error: error.message
       });
     }
   },
 
   create: async (req, res) => {
     try {
-      const { email, password, username, role, fullName, phone } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, password, role, fullName, phone } = data;
       
-      if (!email || !password || !username) {
+      if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Email, password, dan username harus diisi'
+          message: 'Email dan password harus diisi'
         });
       }
       
@@ -126,7 +127,7 @@ const UserController = {
         });
       }
       
-      if (password.length < 8) {
+      if (password.length < 6) {
         return res.status(400).json({
           success: false,
           message: 'Password minimal 6 karakter'
@@ -152,39 +153,31 @@ const UserController = {
         });
       }
       
-      const existingUsername = await prisma.user.findUnique({
-        where: { username }
-      });
-      
-      if (existingUsername) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username sudah digunakan'
-        });
-      }
-      
       const hashedPassword = await hash(password, 10);
       
-      const user = await prisma.user.create({
-        data: {
-          email,
-          username,
-          password: hashedPassword,
-          role: role || 'customer',
-          userProfile: {
-            create: {
-              fullName: fullName || '',
-              phone: phone || ''
-            }
+      const userData = {
+        email,
+        password: hashedPassword,
+        role: role || 'customer'
+      };
+      
+      if (fullName || phone) {
+        userData.profile = {
+          create: {
+            fullName: fullName || '',
+            phone: phone || ''
           }
-        },
+        };
+      }
+      
+      const user = await prisma.user.create({
+        data: userData,
         select: {
           id: true,
           email: true,
-          username: true,
           role: true,
           createdAt: true,
-          userProfile: {
+          profile: {
             select: {
               fullName: true,
               phone: true
@@ -202,7 +195,8 @@ const UserController = {
       console.error('Create user error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat membuat user'
+        message: 'Terjadi kesalahan saat membuat user',
+        error: error.message
       });
     }
   },
@@ -210,7 +204,8 @@ const UserController = {
   update: async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { email, role, fullName, phone, address } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, role, fullName, phone, address } = data;
       
       if (id <= 0) {
         return res.status(400).json({
@@ -297,7 +292,8 @@ const UserController = {
       console.error('Update user error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat mengupdate user'
+        message: 'Terjadi kesalahan saat mengupdate user',
+        error: error.message
       });
     }
   },
@@ -316,7 +312,7 @@ const UserController = {
       const user = await prisma.user.findUnique({
         where: { id },
         include: {
-          userProfile: {
+          profile: {
             select: {
               photoUrl: true
             }
@@ -331,8 +327,8 @@ const UserController = {
         });
       }
       
-      if (user.userProfile?.photoUrl) {
-        const photoPath = `.${user.userProfile.photoUrl}`;
+      if (user.profile?.photoUrl) {
+        const photoPath = `.${user.profile.photoUrl}`;
         if (existsSync(photoPath)) {
           await unlink(photoPath);
         }
@@ -354,7 +350,8 @@ const UserController = {
       console.error('Delete user error:', error);
       res.status(500).json({
         success: false,
-        message: 'Terjadi kesalahan saat menghapus user'
+        message: 'Terjadi kesalahan saat menghapus user',
+        error: error.message
       });
     }
   }
