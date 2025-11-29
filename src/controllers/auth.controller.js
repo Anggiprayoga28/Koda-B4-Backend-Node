@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/user.model.js';
 import crypto from 'crypto';
+import { prisma } from '../lib/prisma.js';
 import process from 'process';
+import EmailService from '../services/email.service.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -11,7 +13,60 @@ const otpStorage = new Map();
 const AuthController = {
   register: async (req, res) => {
     try {
-      const { email, password, fullName, phone } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, password, fullName, phone, role } = data;
+      
+      const userRole = role || 'customer';
+      if (!['customer', 'admin'].includes(userRole)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Role tidak valid. Gunakan "customer" atau "admin"'
+        });
+      }
+      
+      if (userRole === 'admin') {
+        try {
+          const adminCount = await prisma.user.count({
+            where: { role: 'admin' }
+          });
+          
+          console.log(`Admin count in database: ${adminCount}`);
+          
+          if (adminCount > 0) {
+            const token = req.headers.authorization?.split(' ')[1];
+            
+            if (!token) {
+              return res.status(403).json({
+                success: false,
+                message: 'Sudah ada admin. Login sebagai admin untuk membuat admin baru.'
+              });
+            }
+            
+            try {
+              const decoded = jwt.verify(token, JWT_SECRET);
+              if (decoded.role !== 'admin') {
+                return res.status(403).json({
+                  success: false,
+                  message: 'Hanya admin yang bisa membuat akun admin'
+                });
+              }
+            } catch (error) {
+              return res.status(401).json({
+                success: false,
+                message: 'Token tidak valid atau expired'
+              });
+            }
+          } else {
+            console.log('No admin exists. Allowing first admin registration without token.');
+          }
+        } catch (error) {
+          console.error('Error checking admin:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Error checking admin status'
+          });
+        }
+      }
       
       const existingEmail = await UserModel.findByEmail(email);
       if (existingEmail) {
@@ -26,7 +81,7 @@ const AuthController = {
         password,
         fullName: fullName || '',
         phone: phone || '',
-        role: 'customer'
+        role: userRole
       });
       
       const token = jwt.sign(
@@ -41,7 +96,7 @@ const AuthController = {
       
       res.status(201).json({
         success: true,
-        message: 'Registrasi berhasil',
+        message: userRole === 'admin' ? 'Admin berhasil didaftarkan' : 'Registrasi berhasil',
         data: {
           id: newUser.id,
           email: newUser.email,
@@ -62,7 +117,8 @@ const AuthController = {
 
   login: async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, password } = data;
       
       const user = await UserModel.findByEmail(email);
       if (!user) {
@@ -110,47 +166,10 @@ const AuthController = {
     }
   },
 
-  verifyToken: async (req, res) => {
-    try {
-      const token = req.headers.authorization?.split(' ')[1];
-      
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          message: 'Token tidak ditemukan'
-        });
-      }
-      
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const user = await UserModel.findById(decoded.id);
-      
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'User tidak ditemukan'
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: 'Token valid',
-        data: {
-          id: user.id,
-          email: user.email,
-          role: user.role
-        }
-      });
-    } catch (error) {
-      res.status(401).json({
-        success: false,
-        message: error
-      });
-    }
-  },
-
   forgotPassword: async (req, res) => {
     try {
-      const { email } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email } = data;
       
       const user = await UserModel.findByEmail(email);
       if (!user) {
@@ -170,11 +189,23 @@ const AuthController = {
       
       console.log(`OTP for ${email}: ${otp}`);
       
-      res.json({
-        success: true,
-        message: 'OTP telah dikirim ke email Anda',
-        otp: process.env.NODE_ENV === 'development' ? otp : undefined
-      });
+      try {
+        await EmailService.sendOTP(email, otp);
+        
+        res.json({
+          success: true,
+          message: 'OTP telah dikirim ke email Anda',
+          otp: process.env.NODE_ENV === 'development' ? otp : undefined
+        });
+      } catch (emailError) {
+        otpStorage.delete(email);
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Gagal mengirim OTP ke email. Pastikan konfigurasi SMTP sudah benar.',
+          error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+        });
+      }
     } catch (error) {
       console.error('Forgot password error:', error);
       res.status(500).json({
@@ -186,7 +217,8 @@ const AuthController = {
 
   verifyOTP: async (req, res) => {
     try {
-      const { email, otp, newPassword } = req.body;
+      const data = (req.body && Object.keys(req.body).length > 0) ? req.body : req.query;
+      const { email, otp, newPassword } = data;
       
       const storedOTP = otpStorage.get(email);
       
