@@ -19,7 +19,9 @@ const HistoryController = {
       const where = { userId };
       
       if (status) {
-        where.status = status;
+        where.status = {
+          name: status
+        };
       }
       
       if (startDate || endDate || month) {
@@ -51,11 +53,12 @@ const HistoryController = {
         take,
         orderBy: { orderDate: 'desc' },
         include: {
+          status: true,
           orderItems: {
             include: {
               product: {
                 select: {
-                  image: true,
+                  imageUrl: true,
                   name: true
                 }
               }
@@ -73,10 +76,10 @@ const HistoryController = {
           month: 'long', 
           year: 'numeric' 
         }),
-        status: order.status,
-        statusDisplay: getStatusDisplay(order.status),
+        status: order.status?.name || 'unknown',
+        statusDisplay: getStatusDisplay(order.status?.name),
         total: order.total,
-        imageProduct: order.orderItems[0]?.product?.image || null
+        imageProduct: order.orderItems[0]?.product?.imageUrl || null  
       }));
       
       res.json({
@@ -103,10 +106,9 @@ const HistoryController = {
 function getStatusDisplay(status) {
   const statusMap = {
     'pending': 'Menunggu',
-    'processing': 'Diproses',
-    'shipping': 'Dikirim',
-    'delivered': 'Terkirim',
-    'done': 'Selesai',
+    'on_progress': 'Diproses',
+    'sending_goods': 'Dikirim',
+    'finish_order': 'Selesai',
     'cancelled': 'Dibatalkan'
   };
   
