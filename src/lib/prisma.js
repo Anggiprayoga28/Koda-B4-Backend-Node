@@ -1,11 +1,27 @@
-import "dotenv/config";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../../generated/prisma/client.ts";
-import process from "process";
+import 'dotenv/config';
+import { PrismaClient } from '../../generated/prisma/index.js';
+import pgPkg from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import process from 'process';
 
-const connectionString = `${process.env.DATABASE_URL}`;
+const { Pool } = pgPkg;
 
-const adapter = new PrismaBetterSqlite3({ url: connectionString });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+const adapter = new PrismaPg(pool);
+
 const prisma = new PrismaClient({ adapter });
 
-export { prisma };
+const prismaInstance =
+  globalThis._prisma || prisma;
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis._prisma = prismaInstance;
+}
+
+export {prismaInstance as prisma};
